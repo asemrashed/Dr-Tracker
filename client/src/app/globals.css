@@ -50,6 +50,36 @@
   --radius-input: 10px;
 
   /* Elevation is tonal. Shadows only for floating layers (dialogs, drawers). */
+  --animate-fade-in: fade-in 150ms ease-out;
+  --animate-fade-out: fade-out 120ms ease-in forwards;
+  --animate-pop-in: pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-pop-out: pop-out 120ms ease-in forwards;
+  --animate-sheet-in: sheet-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-sheet-out: sheet-out 160ms ease-in forwards;
+  --animate-swap: swap 200ms ease-out;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+  }
+  @keyframes fade-out {
+    to { opacity: 0; }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)) scale(0.98); }
+  }
+  @keyframes pop-out {
+    to { opacity: 0; transform: translate(-50%, calc(-50% + 8px)) scale(0.98); }
+  }
+  @keyframes sheet-in {
+    from { transform: translateX(100%); }
+  }
+  @keyframes sheet-out {
+    to { transform: translateX(100%); }
+  }
+  @keyframes swap {
+    from { opacity: 0; transform: translateY(6px); }
+  }
+
   --shadow-float: 0 12px 32px -8px rgb(11 18 32 / 0.18), 0 2px 6px rgb(11 18 32 / 0.06);
 }
 

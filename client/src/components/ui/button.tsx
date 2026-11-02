@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
  * Rule from DESIGN.md: one solid `primary` button per group. Everything else is `tint` or `ghost`.
  * Heights keep a 44px tap target on touch screens.
  */
-const buttonVariants = cva(
+export const buttonVariants = cva(
   'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-colors disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {

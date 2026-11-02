@@ -1,19 +1,14 @@
-import { Stethoscope } from 'lucide-react';
 import type { Metadata } from 'next';
-import { EmptyState } from '@/components/shared/empty-state';
-import { PageHeader } from '@/components/shared/page-header';
+import { Suspense } from 'react';
+import { DoctorsList } from '@/features/doctors/components/doctors-list';
 
 export const metadata: Metadata = { title: 'Doctors' };
 
+// useSearchParams() (filters live in the URL) requires a Suspense boundary.
 export default function DoctorsPage() {
   return (
-    <>
-      <PageHeader title="Doctors" description="Create, search and manage doctors and their patients." />
-      <EmptyState
-        icon={Stethoscope}
-        title="Doctors module coming next"
-        description="The doctors list, filters and patient management land in the next phase."
-      />
-    </>
+    <Suspense>
+      <DoctorsList />
+    </Suspense>
   );
 }

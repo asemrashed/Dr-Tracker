@@ -22,7 +22,16 @@ interface ApiInit extends Omit<RequestInit, 'body'> {
   json?: unknown;
 }
 
-export async function api<T = void>(path: string, { json, headers, ...init }: ApiInit = {}): Promise<T> {
+interface Envelope<T, M> {
+  data?: T;
+  meta?: M;
+  error?: { code?: string; message?: string; details?: unknown };
+}
+
+async function request<T, M = never>(
+  path: string,
+  { json, headers, ...init }: ApiInit = {},
+): Promise<Envelope<T, M> | null> {
   let res: Response;
   try {
     res = await fetch(`${BASE_PATH}${path}`, {
@@ -39,12 +48,9 @@ export async function api<T = void>(path: string, { json, headers, ...init }: Ap
     throw new ApiError(0, 'NETWORK_ERROR', "Can't reach the server. Check your connection and try again.");
   }
 
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) return null;
 
-  const payload = (await res.json().catch(() => null)) as {
-    data?: T;
-    error?: { code?: string; message?: string; details?: unknown };
-  } | null;
+  const payload = (await res.json().catch(() => null)) as Envelope<T, M> | null;
 
   if (!res.ok) {
     throw new ApiError(
@@ -54,6 +60,39 @@ export async function api<T = void>(path: string, { json, headers, ...init }: Ap
       payload?.error?.details,
     );
   }
+  return payload;
+}
 
+/** Single-resource call: returns the unwrapped `data`. */
+export async function api<T = void>(path: string, init: ApiInit = {}): Promise<T> {
+  const payload = await request<T>(path, init);
   return payload?.data as T;
+}
+
+export interface PageMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface Page<T> {
+  items: T[];
+  meta: PageMeta;
+}
+
+/** List call: returns the items together with the pagination meta. */
+export async function apiPage<T>(path: string, init: ApiInit = {}): Promise<Page<T>> {
+  const payload = await request<T[], PageMeta>(path, init);
+  return { items: payload?.data ?? [], meta: payload?.meta as PageMeta };
+}
+
+/** Build a query string, skipping empty values. */
+export function qs(params: Record<string, string | number | undefined | null>): string {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') sp.set(k, String(v));
+  }
+  const out = sp.toString();
+  return out ? `?${out}` : '';
 }

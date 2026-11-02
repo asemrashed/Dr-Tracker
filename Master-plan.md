@@ -4,14 +4,14 @@
 
 ## >>> PROJECT STATUS: READ THIS FIRST <<<
 
-**Last updated:** 2026-11-02 · **Repo state:** Phases 0 and 1 complete · **NEXT: Phase 2 (Doctors module + delete/reassign flow)**
+**Last updated:** 2026-11-02 · **Repo state:** Phases 0-2 complete · **NEXT: Phase 3 (Patients API + UI)**
 
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Monorepo (npm workspaces), single root `.gitignore`, tooling, env config | DONE |
 | 1 | Server auth + seed users; client foundation (`DESIGN.md`, tokens, app shell, login with show/hide password and demo buttons, route protection) | DONE |
-| **2** | **Doctors (API + indexes + UI) and the delete/reassign flow** | **NEXT** |
-| 3 | Patients (API + UI) | todo |
+| 2 | Doctors (API + indexes + UI) and the delete/reassign flow | DONE (Mongo-specific parts unverified, see below) |
+| **3** | **Patients (API + UI)** | **NEXT** |
 | 4 | Dashboard (aggregations + charts) | todo |
 | 5 | Demo-data seed, polish, `explain` evidence, a few service tests | todo |
 | 6 | README, screenshots, deployment, final QA | todo |
@@ -20,8 +20,8 @@
 
 1. Unzip, then `npm install` at the repo root (installs `client` and `server`).
 2. `cp server/.env.example server/.env` (set `MONGODB_URI`, `JWT_SECRET`), `cp client/.env.example client/.env.local`.
-3. **Run `npm run seed` against a REAL MongoDB first** (see "Not yet verified" below), then `npm run dev`, then log in with the Admin demo button.
-4. Start Phase 2. Suggested order: shared constants (specializations, conditions) -> `Doctor` and `Patient` models with indexes -> doctors service/routes with Zod schemas -> `reassign-candidates` and `reassign-and-delete` -> client `features/doctors/*` (table, filters, form, detail page, delete modal). Keep the vertical-slice approach: API and UI together, then verify in a browser.
+3. **Run `npm run seed` then `npm run smoke -w server` against a REAL MongoDB first** (see "Not yet verified" below), then `npm run dev`, then log in with the Admin demo button.
+4. Start Phase 3: patients list/edit/delete. Reuse `modules/patients` (model, schema and service already exist for the doctor-scoped create/list/delete), add `GET /patients`, `GET/PATCH /patients/:id` (PATCH may change `doctorId`: target must be an active doctor), then client `features/patients/*` (list page, filters incl. doctor select, edit slide-over reusing `AddPatientSheet`'s form). Reuse `Pagination`, `useUrlParams`, `useUrlSearch`, `Field`, `Select`, `ConfirmDialog`, `ErrorState`. Keep the vertical-slice approach.
 5. Before writing UI, read `client/DESIGN.md` and run its anti-slop and usability checklists after each screen.
 6. When a phase ends, update this status block (table, "What exists", "Decisions") so the next session can continue.
 
@@ -47,6 +47,29 @@ client/                 Next.js 16 (App Router), React 19, Tailwind v4, TanStack
   src/components/       ui/ (button, input, label, password-input), layout/ (sidebar, topbar, app-shell), shared/ (logo, page-header, empty-state)
   src/lib/              api client (ApiError, same-origin fetch), session handling, navigation config, utils
 ```
+
+### Phase 2 additions (what exists now, on top of the tree above)
+
+```
+server/src/shared/        constants (SPECIALIZATIONS, CONDITIONS, GENDERS, PAGINATION), pagination, search (escapeRegex, namePrefixFilter, date range, idParams, phone), transaction (runAtomically)
+server/src/modules/doctors/   model, schema, service, controller, routes   (CRUD, list+filters, reassign-candidates, reassign-and-delete, meta, /:id/patients GET+POST)
+server/src/modules/patients/  model, schema, service, controller, routes   (doctor-scoped list/create, DELETE /patients/:id; rest is Phase 3)
+server/src/scripts/smoke-doctors.ts   integration check for a REAL MongoDB (npm run smoke -w server)
+server/tests/             fakeDb.ts (in-memory model stand-in) + doctors.test.ts; 36 tests total
+client/src/features/doctors/  api, hooks, schemas, components/ (list, filters, table+mobile cards, form, detail, patients list, add-patient sheet, delete/reassign dialog)
+client/src/features/patients/ api (type + delete), schemas
+client/src/components/ui/     + dialog (Radix, restores focus to opener), select, field, skeleton
+client/src/components/shared/ + pagination, error-state, confirm-dialog
+client/src/lib/               + constants (mirror), format, forms, use-url-params, use-url-search (debounced, URL-synced); api.ts gained apiPage() and qs()
+```
+
+Phase 2 decisions:
+- Delete flow follows section 6, with one addition: the dialog opens with a plain "Delete?" confirmation first (soft delete without a prompt is too easy to misclick); the server's 409 `DOCTOR_HAS_PATIENTS` then swaps it to the reassign state. Server re-validates source/target/specialization; reassign runs in a transaction when supported, otherwise in the idempotent order (patients first, doctor last). Plain delete and patient creation use soft-delete-then-recount / insert-then-recheck to close the race windows.
+- `GET /doctors` does two index-backed queries (page of doctors, then one grouped patient count for those ids) rather than `$lookup`. `patientCount` is therefore not a sortable column (sorts: name, specialization, hospital, createdAt).
+- Search is a prefix match on `nameLower` (index-friendly). Hospital filter is an exact match against `GET /doctors/meta/specializations`.
+- No TanStack Table: a plain table plus mobile cards with server-driven sort was enough. Native `<select>` is used for dropdowns.
+- Email uniqueness: pre-check (friendly `EMAIL_TAKEN` field error) plus the partial unique index as the backstop.
+- Express 5 does not parse nested query objects, so `?search[$ne]=x` is just an ignored unknown key (tested).
 
 ### Credentials (seeded by `npm run seed`)
 
@@ -75,7 +98,8 @@ Shared password **`Asdfghjk`** for all. `admin@gmail.com` (role admin, **can log
 
 ### Not yet verified (important)
 
-- **MongoDB was not available in the build sandbox** (the binary download is blocked). Server auth tests use an in-memory fake `User` model, and the end-to-end browser run used the real Express app with that same fake. Everything MongoDB-specific is **unverified**: the seed script, Mongoose model/index creation, and (later) partial indexes, aggregations and transactions. First action next session: run the seed and the login flow against a real MongoDB (local `mongod` or Atlas).
+- **MongoDB was not reachable from the build sandbox** (no local mongod, binary download blocked, and the remote host's port 27017 is not reachable from it). Tests use in-memory fakes, and the browser runs used the real Express app with those fakes. Everything MongoDB-specific is **unverified**: the seed script, index creation (incl. the partial unique email index), aggregations, transactions and `explain` plans. **First action next session: `npm run seed`, then `npm run smoke -w server`** (it checks indexes, the reassign flow and prints explain plans, then deletes its test data). Paste its explain output into the README in Phase 5/6.
+- Phase 2 browser run (production build, Playwright, desktop 1440 and mobile 390, 30/30 checks) covered: pagination, debounced search, filters, date filter, sorting, URL sync, both delete paths (reassign and no-candidate), form validation incl. server EMAIL_TAKEN, add/delete patient, edit, not-found state, Escape/focus restore, no overflow, 44px targets.
 - Verified in a real browser (production build, Playwright): redirects and route protection, login/logout, show/hide password, demo buttons (Admin works, Doctor/Patient disabled), cookie flags (HttpOnly, SameSite=Lax), forged-cookie handling, open-redirect protection, mobile layout (no overflow, 44px targets, drawer), 32/32 checks. Screenshots reviewed.
 - Colors checked against WCAG AA (all key pairs at least 4.5:1).
 - `npm run dev` (watch mode) was not exercised; `build` and `start` were.
