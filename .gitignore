@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# builds
+.next/
+dist/
+build/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# env files: ignore all, keep the templates
+.env
+.env.*
+!.env.example
+
+# logs and coverage
+*.log
+npm-debug.log*
+coverage/
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# deployment tooling
+.vercel/
+
+# local test artifacts
+.screenshots-tmp/
