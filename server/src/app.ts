@@ -3,6 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import pinoHttp from 'pino-http';
+import { connectDb } from './config/db';
 import { env } from './config/env';
 import { logger } from './config/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -23,6 +24,18 @@ export function createApp() {
   app.use(express.json({ limit: '10kb' }));
   app.use(cookieParser());
 
+  // In serverless environments (e.g. Vercel), ensure DB is connected before processing requests.
+  if (env.NODE_ENV !== 'test') {
+    app.use(async (_req, _res, next) => {
+      try {
+        await connectDb();
+        next();
+      } catch (err) {
+        next(err);
+      }
+    });
+  }
+
   app.get('/health', (_req, res) => {
     res.json({ data: { status: 'ok' } });
   });
@@ -34,3 +47,6 @@ export function createApp() {
 
   return app;
 }
+
+const defaultApp = createApp();
+export default defaultApp;
