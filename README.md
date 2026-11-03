@@ -4,6 +4,22 @@
 
 Doctor Tracker is a secure admin web portal for managing doctors and their patients. One authenticated admin can create and search doctors, follow each doctor's patients, and watch an analytics dashboard, with server-side search, filtering and pagination backed by indexed MongoDB queries.
 
+## Key Problem-Solving Feature: Doctor Deletion & Patient Reassignment Flow
+
+> **Personal Integration:** Doctor deletion was not part of the base requirements. I architected and implemented a safe, production-grade deletion flow with zero-orphan guarantees.
+
+In real-world healthcare software, deleting a doctor who has active patients creates dangerous dangling references or untracked patients. To solve this responsibly:
+
+1. **Direct Soft-Delete (No Patients):**
+   * If a doctor has 0 active patients, the admin can directly soft-delete the doctor (`isDeleted: true`, `deletedAt: new Date()`).
+2. **Safe Reassignment Flow (With Active Patients):**
+   * If the doctor has active patients, deletion is blocked until all patients are safely accounted for.
+   * **Reassign to existing peer:** The admin is prompted with a list of eligible active doctors in the **same specialization** (or another active doctor) to take over the patients.
+   * **Add a new doctor:** If no suitable doctor exists, the admin can create a new replacement doctor on the spot.
+   * **Atomic Transaction:** Moving the patients and soft-deleting the outgoing doctor executes inside an atomic MongoDB multi-document transaction (`session.withTransaction`). If any step fails, the entire operation rolls back to prevent data inconsistency or orphaned patient records.
+
+---
+
 ## Quick start
 
 Requirements: Node.js 20+ and a MongoDB instance (local, or a free MongoDB Atlas cluster).
