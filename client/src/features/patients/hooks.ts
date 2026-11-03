@@ -2,15 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import {
-  createPatient,
-  deletePatient,
-  fetchDoctorOptions,
-  listPatients,
-  updatePatient,
-  type Patient,
-  type PatientListParams,
-} from './api';
+import { deletePatient, fetchDoctorOptions, listPatients, updatePatient, type PatientListParams } from './api';
 import type { PatientFormValues } from './schemas';
 
 export const patientKeys = {
@@ -39,14 +31,6 @@ export function useInvalidateAll() {
       qc.invalidateQueries({ queryKey: patientKeys.all }),
       qc.invalidateQueries({ queryKey: ['dashboard'] }),
     ]);
-}
-
-export function useCreatePatient() {
-  const invalidate = useInvalidateAll();
-  return useMutation({
-    mutationFn: (v: PatientFormValues & { doctorId: string }): Promise<Patient> => createPatient(v),
-    onSuccess: invalidate,
-  });
 }
 
 export function useUpdatePatient(id: string) {

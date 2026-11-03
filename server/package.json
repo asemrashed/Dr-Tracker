@@ -11,8 +11,11 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run",
-    "seed": "tsx src/scripts/seed-users.ts",
-    "smoke": "tsx src/scripts/smoke-doctors.ts"
+    "seed": "npm run seed:users && npm run seed:demo",
+    "smoke": "tsx src/scripts/smoke-doctors.ts",
+    "seed:users": "tsx src/scripts/seed-users.ts",
+    "seed:demo": "tsx src/scripts/seed-demo.ts",
+    "explain": "tsx src/scripts/explain-evidence.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

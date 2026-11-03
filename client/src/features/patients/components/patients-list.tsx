@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, SearchX, Stethoscope, Users } from 'lucide-react';
+import { SearchX, Stethoscope, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -10,11 +10,11 @@ import { ErrorState } from '@/components/shared/error-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { useClampPage } from '@/lib/use-clamp-page';
 import { useUrlParams } from '@/lib/use-url-params';
 import { useUrlSearch } from '@/lib/use-url-search';
 import type { Patient, PatientListParams, PatientSort } from '../api';
 import { useDeletePatient, useDoctorOptions, usePatients } from '../hooks';
-import { CreatePatientSheet } from './create-patient-sheet';
 import { EditPatientSheet } from './edit-patient-sheet';
 import { PatientsFilters } from './patients-filters';
 import { PatientsTable } from './patients-table';
@@ -27,7 +27,6 @@ export function PatientsList() {
   const doctors = useDoctorOptions();
   const [editing, setEditing] = useState<Patient | null>(null);
   const [deleting, setDeleting] = useState<Patient | null>(null);
-  const [isAdding, setIsAdding] = useState(false);
   const del = useDeletePatient();
 
   const sortParam = searchParams.get('sort');
@@ -56,6 +55,7 @@ export function PatientsList() {
   );
 
   const { data, isPending, isError, error, refetch, isFetching, isPlaceholderData } = usePatients(params);
+  useClampPage(data?.meta, page, !isPlaceholderData, update);
   const activeCount = [search.value, condition, gender, doctorId, from, to].filter(Boolean).length;
 
   const onSort = (key: PatientSort) => {
@@ -67,20 +67,11 @@ export function PatientsList() {
     clear();
   };
 
-  const noResults = !isPending && !isError && data?.items.length === 0;
+  const noResults = !isPending && !isError && data?.items.length === 0 && page <= data.meta.totalPages;
 
   return (
     <>
-      <PageHeader
-        title="Patients"
-        description="Search, filter and manage every patient across all doctors."
-        action={
-          <Button onClick={() => setIsAdding(true)}>
-            <Plus className="size-4" aria-hidden />
-            Add patient
-          </Button>
-        }
-      />
+      <PageHeader title="Patients" description="Search, filter and manage every patient across all doctors." />
 
       <PatientsFilters
         search={search.text}
@@ -130,7 +121,6 @@ export function PatientsList() {
         <p role="alert" className="mt-3 text-sm text-danger-700">Couldn&apos;t refresh: {error.message}</p>
       )}
 
-      {isAdding && <CreatePatientSheet open={isAdding} onOpenChange={setIsAdding} />}
       {editing && <EditPatientSheet key={editing.id} patient={editing} onClose={() => setEditing(null)} />}
       {deleting && (
         <ConfirmDialog

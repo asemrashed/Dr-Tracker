@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Patient } from '@/features/patients/api';
 import { formatDate } from '@/lib/format';
+import { useClampPage } from '@/lib/use-clamp-page';
 import { useUrlParams } from '@/lib/use-url-params';
 import { useUrlSearch } from '@/lib/use-url-search';
 import { useDeletePatient } from '@/features/patients/hooks';
@@ -29,7 +30,8 @@ export function DoctorPatients({ doctorId, onAdd }: { doctorId: string; onAdd: (
   const [toDelete, setToDelete] = useState<Patient | null>(null);
   const del = useDeletePatient();
 
-  const empty = !isPending && !isError && data?.items.length === 0;
+  useClampPage(data?.meta, page, !isPlaceholderData, update);
+  const empty = !isPending && !isError && data?.items.length === 0 && page <= data.meta.totalPages;
 
   return (
     <section aria-labelledby="patients-heading" className="mt-8">

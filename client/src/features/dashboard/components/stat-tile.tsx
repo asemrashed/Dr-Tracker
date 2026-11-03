@@ -30,13 +30,15 @@ interface Delta {
   previous: number;
   /** "previous 30 days" */
   against: string;
+  /** Neither direction is good or bad (e.g. doctors added): no green/red. */
+  neutral?: boolean;
 }
 
-function DeltaLine({ current, previous, against }: Delta) {
+function DeltaLine({ current, previous, against, neutral }: Delta) {
   const diff = current - previous;
   // Icon + words + color: direction is never carried by color alone.
   const Icon = diff > 0 ? ArrowUp : diff < 0 ? ArrowDown : Minus;
-  const tone = diff > 0 ? 'text-success-700' : diff < 0 ? 'text-danger-700' : 'text-ink-muted';
+  const tone = neutral || diff === 0 ? 'text-ink-muted' : diff > 0 ? 'text-success-700' : 'text-danger-700';
   const amount =
     previous > 0
       ? `${Math.abs(Math.round((diff / previous) * 100))}%`

@@ -17,11 +17,6 @@ const patientFields = {
 
 export const createPatientSchema = z.object(patientFields);
 
-export const createPatientStandaloneSchema = z.object({
-  ...patientFields,
-  doctorId: objectIdSchema,
-});
-
 export const listDoctorPatientsQuery = z.object({
   ...paginationQuery,
   search: z.string().trim().max(80).optional(),
@@ -44,7 +39,6 @@ export const listPatientsQuery = z.object({
 });
 
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
-export type CreatePatientStandaloneInput = z.infer<typeof createPatientStandaloneSchema>;
 export type ListDoctorPatientsQuery = z.infer<typeof listDoctorPatientsQuery>;
 export type UpdatePatientInput = z.infer<typeof updatePatientSchema>;
 export type ListPatientsQuery = z.infer<typeof listPatientsQuery>;

@@ -104,7 +104,10 @@ export function DashboardView() {
   }));
   if (data.othersCount > 0) doctorRows.push({ key: 'others', label: 'All other doctors', value: data.othersCount, muted: true });
 
-  const conditionRows: BarRow[] = data.conditions.map((c) => ({ key: c.condition, label: c.condition, value: c.count }));
+  // The catch-all bucket always goes last, whatever its size.
+  const conditionRows: BarRow[] = data.conditions
+    .map((c) => ({ key: c.condition, label: c.condition, value: c.count, muted: c.condition === 'Other' }))
+    .sort((a, b) => Number(a.muted) - Number(b.muted));
 
   return (
     <>
@@ -115,7 +118,7 @@ export function DashboardView() {
           <StatTile label="Active doctors" value={totals.doctors} hint="Currently in the system" />
           <StatTile label="Active patients" value={totals.patients} hint="Across all doctors" />
           <StatTile label={`Patients added, last ${days} days`} value={totals.patientsAdded} delta={{ current: totals.patientsAdded, previous: totals.patientsAddedPrev, against }} />
-          <StatTile label={`Doctors added, last ${days} days`} value={totals.doctorsAdded} delta={{ current: totals.doctorsAdded, previous: totals.doctorsAddedPrev, against }} />
+          <StatTile label={`Doctors added, last ${days} days`} value={totals.doctorsAdded} delta={{ current: totals.doctorsAdded, previous: totals.doctorsAddedPrev, against, neutral: true }} />
         </div>
 
         <Card className="mt-4" title="Patients added per day" subtitle={`Last ${days} days, days in UTC`}>

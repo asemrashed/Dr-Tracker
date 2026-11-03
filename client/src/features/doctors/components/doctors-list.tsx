@@ -8,6 +8,7 @@ import { ErrorState } from '@/components/shared/error-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { Pagination } from '@/components/shared/pagination';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { useClampPage } from '@/lib/use-clamp-page';
 import { useUrlParams } from '@/lib/use-url-params';
 import { useUrlSearch } from '@/lib/use-url-search';
 import type { Doctor, DoctorListParams, DoctorSort } from '../api';
@@ -49,6 +50,7 @@ export function DoctorsList() {
 
   const { data, isPending, isError, error, refetch, isFetching, isPlaceholderData } = useDoctors(params);
 
+  useClampPage(data?.meta, page, !isPlaceholderData, update);
   const activeCount = [search.value, specialization, hospital, from, to].filter(Boolean).length;
 
   const onSort = (key: DoctorSort) => {
@@ -68,7 +70,8 @@ export function DoctorsList() {
     </Link>
   );
 
-  const noResults = !isPending && !isError && data?.items.length === 0;
+  // An empty page past the end is handled by useClampPage, so don't flash "no results" meanwhile.
+  const noResults = !isPending && !isError && data?.items.length === 0 && page <= data.meta.totalPages;
 
   return (
     <>

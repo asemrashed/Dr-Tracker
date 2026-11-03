@@ -76,10 +76,6 @@ export async function createForDoctor(doctorId: string, input: CreatePatientInpu
   return toPatientDTO(patient.toObject());
 }
 
-export async function create(input: { doctorId: string } & CreatePatientInput) {
-  return createForDoctor(input.doctorId, input);
-}
-
 export async function softDelete(id: string) {
   const res = await Patient.updateOne(
     { _id: id, isDeleted: false },
