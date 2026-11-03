@@ -14,7 +14,8 @@ import type { Patient } from '@/features/patients/api';
 import { formatDate } from '@/lib/format';
 import { useUrlParams } from '@/lib/use-url-params';
 import { useUrlSearch } from '@/lib/use-url-search';
-import { useDeletePatient, useDoctorPatients } from '../hooks';
+import { useDeletePatient } from '@/features/patients/hooks';
+import { useDoctorPatients } from '../hooks';
 import { Badge } from './doctor-bits';
 
 /** Paginated patients of one doctor. Search and page live in the URL. */

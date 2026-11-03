@@ -4,16 +4,16 @@
 
 ## >>> PROJECT STATUS: READ THIS FIRST <<<
 
-**Last updated:** 2026-11-02 · **Repo state:** Phases 0-2 complete · **NEXT: Phase 3 (Patients API + UI)**
+**Last updated:** 2026-11-02 · **Repo state:** Phases 0-4 complete · **NEXT: Phase 5 (demo-data seed, polish, `explain` evidence, a few service tests)**
 
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Monorepo (npm workspaces), single root `.gitignore`, tooling, env config | DONE |
 | 1 | Server auth + seed users; client foundation (`DESIGN.md`, tokens, app shell, login with show/hide password and demo buttons, route protection) | DONE |
 | 2 | Doctors (API + indexes + UI) and the delete/reassign flow | DONE (Mongo-specific parts unverified, see below) |
-| **3** | **Patients (API + UI)** | **NEXT** |
-| 4 | Dashboard (aggregations + charts) | todo |
-| 5 | Demo-data seed, polish, `explain` evidence, a few service tests | todo |
+| 3 | Patients (API + UI) | DONE (Mongo-specific parts unverified, see below) |
+| 4 | Dashboard (aggregations + charts) | DONE (aggregations unverified on real MongoDB, see below) |
+| **5** | **Demo-data seed, polish, `explain` evidence, a few service tests** | **NEXT** |
 | 6 | README, screenshots, deployment, final QA | todo |
 
 ### How to resume (for the next developer or AI session)
@@ -21,7 +21,7 @@
 1. Unzip, then `npm install` at the repo root (installs `client` and `server`).
 2. `cp server/.env.example server/.env` (set `MONGODB_URI`, `JWT_SECRET`), `cp client/.env.example client/.env.local`.
 3. **Run `npm run seed` then `npm run smoke -w server` against a REAL MongoDB first** (see "Not yet verified" below), then `npm run dev`, then log in with the Admin demo button.
-4. Start Phase 3: patients list/edit/delete. Reuse `modules/patients` (model, schema and service already exist for the doctor-scoped create/list/delete), add `GET /patients`, `GET/PATCH /patients/:id` (PATCH may change `doctorId`: target must be an active doctor), then client `features/patients/*` (list page, filters incl. doctor select, edit slide-over reusing `AddPatientSheet`'s form). Reuse `Pagination`, `useUrlParams`, `useUrlSearch`, `Field`, `Select`, `ConfirmDialog`, `ErrorState`. Keep the vertical-slice approach.
+4. Start Phase 5: `server/src/scripts/seed-demo.ts` (fake doctors across all SPECIALIZATIONS, 2+ per specialization so reassign works, hospitals, 300-1000 patients with `createdAt` spread over the last 90 days and a realistic condition mix; idempotent: tag demo records or wipe-and-reseed; make `npm run seed` run both scripts). Then polish (empty/loading/error states are in place; review motion and mobile), capture `explain` evidence from `npm run smoke -w server` for the README, and fill the remaining service tests only where a rule is untested.
 5. Before writing UI, read `client/DESIGN.md` and run its anti-slop and usability checklists after each screen.
 6. When a phase ends, update this status block (table, "What exists", "Decisions") so the next session can continue.
 
@@ -71,6 +71,46 @@ Phase 2 decisions:
 - Email uniqueness: pre-check (friendly `EMAIL_TAKEN` field error) plus the partial unique index as the backstop.
 - Express 5 does not parse nested query objects, so `?search[$ne]=x` is just an ignored unknown key (tested).
 
+### Phase 3 additions
+
+```
+server/src/modules/patients/   + GET /patients (filters: condition, gender, doctorId, from, to, search; sort: name, age, condition, createdAt), GET/PATCH /patients/:id (PATCH may change doctorId)
+server/src/modules/doctors/    + GET /doctors/meta/options (id, name, specialization of all active doctors, capped at 1000, for dropdowns)
+server/tests/patients.test.ts  8 tests (44 total)
+client/src/features/patients/  api, hooks (usePatients, useDoctorOptions, useUpdatePatient, useDeletePatient, useInvalidateAll), schemas, components/ (patients-list, filters, table + mobile cards, edit-patient-sheet, patient-fields)
+client/src/components/shared/  + sort-button (extracted from the doctors table)
+client/src/app/(app)/patients/page.tsx
+```
+
+Phase 3 decisions:
+- Patient list returns each patient's `doctor {id,name,specialization}` via one extra query for the page's doctors (not `$lookup`), keeping the patient query on its index.
+- Reassigning a single patient (PATCH `doctorId`) is allowed to ANY active doctor (the same-specialization rule only protects the bulk move when deleting a doctor). Target is validated, and re-checked after the save so a concurrent doctor delete cannot orphan the patient.
+- Patients are still only CREATED from a doctor's page (add-patient slide-over); the patients page has no "Add" button by design (a patient must belong to a doctor), and its empty state points to Doctors.
+- Doctor dropdown uses the options endpoint (fine to ~1000 doctors; async search is the scale-up path).
+- Every patient mutation invalidates `['doctors']`, `['patients']` and `['dashboard']`, so counts stay right across pages (verified in the browser).
+
+### Phase 4 additions
+
+```
+server/src/modules/dashboard/  utils (periodBounds, fillDays), schema (days: 7|30|90), service, controller, routes   -> GET /api/v1/dashboard/stats?days=30
+server/tests/dashboard.test.ts 9 tests (51 total); fakeDb.ts now interprets $match/$group/$sort/$limit so the real service code runs in tests
+client/src/features/dashboard/ api, hooks, components/ (dashboard-view, range-toggle, stat-tile (count-up), ranked-bars, patients-area-chart)
+client/src/app/(app)/dashboard/page.tsx
+```
+
+Response shape: `{ range, totals {doctors, patients, patientsAdded, patientsAddedPrev, doctorsAdded, doctorsAddedPrev}, patientsPerDoctor [top 8], othersCount, series [{date,count}] zero-filled, conditions [{condition,count}] }`.
+
+Phase 4 decisions (several differ from the first plan on purpose):
+- **Hand-built SVG/HTML charts instead of Recharts.** Recharts could not be installed in the build sandbox (its registry mirror 404'd on a transitive dependency), so it could not be built or verified. The hand-built area chart (~150 lines) gives full control of marks and the hover layer, adds no dependency and no bundle cost. Swapping in Recharts later is contained to `patients-area-chart.tsx` and `ranked-bars.tsx`.
+- **Condition breakdown is ranked bars, not a donut.** There are 11 conditions; part-to-whole with more than 6 parts is read better as bars on one baseline (dataviz guidance). Patients-per-doctor is ranked bars too (top 8 + "All other doctors" in gray so bars add up to the total).
+- **Time series is one series (patients) on one axis.** Doctors added is a stat tile with a delta, because two series of very different scale on one chart would need a second axis.
+- **Delta on the "added" tiles** compares with the previous period of the same length ("233% up vs previous 30 days"): icon + words + color, never color alone.
+- **Period vs "right now":** stat tiles for "added" and the time series follow the 7/30/90-day toggle (kept in the URL); totals, per-doctor and per-condition are current snapshots, and each card's subtitle says which.
+- Days are **UTC days** (stated on the chart). Top-8 doctor names come from one extra `find` by id (not `$lookup`), like the patients list.
+- No server-side cache: every doctor/patient mutation already invalidates `['dashboard']`, and a 60 s cache would show stale numbers right after an edit. Redis/short TTL is the documented scale-up.
+- Chart colour is the brand cobalt (`primary-600`, passes the dataviz palette validator on the white card surface); one hue for all single-series marks; gray only for "other". Accessibility: legend not needed (single series), a "View data as table" for the time series, keyboard arrows/Home/End on the chart, `aria-live` readout, reduced-motion honoured (count-up is instant).
+- Added index `Doctor {isDeleted, createdAt}` for the doctors-added counts.
+
 ### Credentials (seeded by `npm run seed`)
 
 Shared password **`Asdfghjk`** for all. `admin@gmail.com` (role admin, **can log in**), `dr@gmail.com` (doctor) and `patient@gmail.com` (patient) exist but the server rejects their login with 403 `ROLE_NOT_ENABLED` ("coming soon"). To enable a portal later: add the role to `LOGIN_ENABLED_ROLES` (server `shared/constants.ts`), set `enabled: true` in `client/src/features/auth/demo-accounts.ts`, and protect its routes with `requireRole`.
@@ -98,7 +138,9 @@ Shared password **`Asdfghjk`** for all. `admin@gmail.com` (role admin, **can log
 
 ### Not yet verified (important)
 
-- **MongoDB was not reachable from the build sandbox** (no local mongod, binary download blocked, and the remote host's port 27017 is not reachable from it). Tests use in-memory fakes, and the browser runs used the real Express app with those fakes. Everything MongoDB-specific is **unverified**: the seed script, index creation (incl. the partial unique email index), aggregations, transactions and `explain` plans. **First action next session: `npm run seed`, then `npm run smoke -w server`** (it checks indexes, the reassign flow and prints explain plans, then deletes its test data). Paste its explain output into the README in Phase 5/6.
+- **MongoDB was not reachable from the build sandbox** (no local mongod, binary download blocked, and the remote host's port 27017 is not reachable from it). Tests use in-memory fakes, and the browser runs used the real Express app with those fakes. Everything MongoDB-specific is **unverified**: the seed script, index creation (incl. the partial unique email index), aggregations, transactions and `explain` plans. **First action next session: `npm run seed`, then `npm run smoke -w server`** (it checks indexes, the reassign flow, patient list/update and prints explain plans for doctor and patient queries, then deletes its test data). Paste its explain output into the README in Phase 5/6.
+- Phase 4 browser run (production build, desktop + mobile, 23/23): tiles + count-up, delta wording, chart hover/keyboard/table view, 7/30/90 toggle in the URL (7/30/90 points), ranked-bar mark specs, dashboard refreshes after a patient is deleted elsewhere, mobile overflow and 44px targets. Phases 2 and 3 suites re-run: 30/30 and 20/20. The test data is tiny, so the line chart is nearly flat; Phase 5's demo seed makes it meaningful. **The dashboard aggregations themselves (`$group`, `$dateToString`, counts) are only exercised against the in-memory interpreter; `npm run smoke -w server` runs them for real and checks that series/breakdowns reconcile with the totals.**
+- Phase 3 browser run (same setup, 20/20) covered: patients list, search, condition/gender/doctor/date filters, sort, empty state, edit + reassign (cache refresh on the doctor page), delete, mobile. The Phase 2 suite was re-run after the refactor: 30/30.
 - Phase 2 browser run (production build, Playwright, desktop 1440 and mobile 390, 30/30 checks) covered: pagination, debounced search, filters, date filter, sorting, URL sync, both delete paths (reassign and no-candidate), form validation incl. server EMAIL_TAKEN, add/delete patient, edit, not-found state, Escape/focus restore, no overflow, 44px targets.
 - Verified in a real browser (production build, Playwright): redirects and route protection, login/logout, show/hide password, demo buttons (Admin works, Doctor/Patient disabled), cookie flags (HttpOnly, SameSite=Lax), forged-cookie handling, open-redirect protection, mobile layout (no overflow, 44px targets, drawer), 32/32 checks. Screenshots reviewed.
 - Colors checked against WCAG AA (all key pairs at least 4.5:1).

@@ -19,6 +19,7 @@ doctorsRouter.get('/', validate({ query: listDoctorsQuery }), controller.list);
 doctorsRouter.post('/', validate({ body: createDoctorSchema }), controller.create);
 // Static path must be registered before '/:id'.
 doctorsRouter.get('/meta/specializations', controller.meta);
+doctorsRouter.get('/meta/options', controller.options);
 
 doctorsRouter.get('/:id', validate({ params: idParams }), controller.get);
 doctorsRouter.patch('/:id', validate({ params: idParams, body: updateDoctorSchema }), controller.update);

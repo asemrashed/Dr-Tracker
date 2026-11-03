@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- the fake interprets loosely typed pipeline stages */
 /**
  * Minimal in-memory stand-in for the Doctor and Patient Mongoose models (no MongoDB needed).
  * It only supports the operators the services actually use. It verifies business RULES and the
@@ -13,9 +14,13 @@ const matches = (doc: Doc, filter: Record<string, unknown>): boolean =>
       if ('$ne' in c) return String(value) !== String(c.$ne);
       if ('$in' in c) return (c.$in as unknown[]).map(String).includes(String(value));
       if ('$regex' in c) return new RegExp(c.$regex as string).test(String(value));
-      if ('$gte' in c || '$lte' in c) {
+      if ('$gte' in c || '$lte' in c || '$lt' in c) {
         const t = new Date(value as Date).getTime();
-        return (!c.$gte || t >= +(c.$gte as Date)) && (!c.$lte || t <= +(c.$lte as Date));
+        return (
+          (!c.$gte || t >= +(c.$gte as Date)) &&
+          (!c.$lte || t <= +(c.$lte as Date)) &&
+          (!c.$lt || t < +(c.$lt as Date))
+        );
       }
     }
     return String(value) === String(cond);
@@ -43,6 +48,7 @@ const query = <T>(run: () => T) => {
     skip: (n: number) => ((skipN = n), q),
     limit: (n: number) => ((limitN = n), q),
     lean: () => q,
+    select: () => q,
     session: () => q,
     then: (res: (v: T) => unknown, rej?: (e: unknown) => unknown) => exec().then(res, rej),
   };
@@ -117,11 +123,35 @@ export function createCollection(name: string) {
         const hit = live(f)[0];
         if (hit) rows.splice(rows.indexOf(hit), 1);
       },
-      aggregate: async (pipeline: Array<{ $match?: unknown }>) => {
-        const f = pipeline[0]?.$match as Record<string, unknown>;
-        const groups = new Map<string, number>();
-        for (const r of live(f)) groups.set(String(r.doctorId), (groups.get(String(r.doctorId)) ?? 0) + 1);
-        return [...groups].map(([_id, count]) => ({ _id, count }));
+      /** Supports exactly the stages the services use: $match, $group ({$sum:1}), $sort, $limit. */
+      aggregate: async (pipeline: Array<Record<string, any>>) => {
+        let out: Doc[] = [...rows];
+        for (const stage of pipeline) {
+          if (stage.$match) out = out.filter((r) => matches(r, stage.$match));
+          if (stage.$group) {
+            const spec = stage.$group._id as string | { $dateToString: { date: string } };
+            const keyOf = (r: Doc) =>
+              typeof spec === 'string'
+                ? String(r[spec.slice(1)])
+                : new Date(r[spec.$dateToString.date.slice(1)] as Date).toISOString().slice(0, 10);
+            const groups = new Map<string, number>();
+            for (const r of out) groups.set(keyOf(r), (groups.get(keyOf(r)) ?? 0) + 1);
+            out = [...groups].map(([_id, count]) => ({ _id, count })) as unknown as Doc[];
+          }
+          if (stage.$sort) {
+            const keys = Object.entries(stage.$sort as Record<string, 1 | -1>);
+            out = [...out].sort((a, b) => {
+              for (const [k, dir] of keys) {
+                const x = a[k] as number | string;
+                const y = b[k] as number | string;
+                if (x !== y) return (x < y ? -1 : 1) * dir;
+              }
+              return 0;
+            });
+          }
+          if (stage.$limit) out = out.slice(0, stage.$limit as number);
+        }
+        return out;
       },
     },
   };

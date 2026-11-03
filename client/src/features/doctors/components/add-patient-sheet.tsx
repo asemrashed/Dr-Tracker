@@ -7,11 +7,8 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
-import { Field } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
-import { CONDITIONS, GENDERS } from '@/lib/constants';
-import { applyServerErrors, fieldProps } from '@/lib/forms';
+import { applyServerErrors } from '@/lib/forms';
+import { PatientFields } from '@/features/patients/components/patient-fields';
 import { PATIENT_FIELDS, patientFormSchema, type PatientFormValues } from '@/features/patients/schemas';
 import { useAddPatient } from '../hooks';
 
@@ -43,7 +40,7 @@ function PatientForm({ doctorId, onDone }: { doctorId: string; onDone: () => voi
     formState: { errors },
   } = useForm<PatientFormValues>({
     resolver: zodResolver(patientFormSchema),
-    defaultValues: { name: '', age: '', phone: '' },
+    defaultValues: { name: '', age: '', phone: '', gender: undefined, condition: undefined },
   });
 
   const submit = handleSubmit((values) => {
@@ -70,33 +67,7 @@ function PatientForm({ doctorId, onDone }: { doctorId: string; onDone: () => voi
             <span>{formError}</span>
           </div>
         )}
-        <Field label="Full name" htmlFor="p-name" error={errors.name?.message}>
-          <Input {...fieldProps('p-name', errors.name)} autoComplete="off" {...register('name')} />
-        </Field>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Age" htmlFor="p-age" error={errors.age?.message}>
-            <Input {...fieldProps('p-age', errors.age)} inputMode="numeric" autoComplete="off" className="tabular" {...register('age')} />
-          </Field>
-          <Field label="Gender" htmlFor="p-gender" error={errors.gender?.message}>
-            <Select {...fieldProps('p-gender', errors.gender)} {...register('gender')} defaultValue="">
-              <option value="">Select</option>
-              {GENDERS.map((g) => (
-                <option key={g} value={g} className="capitalize">{g[0]?.toUpperCase() + g.slice(1)}</option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-        <Field label="Phone" htmlFor="p-phone" error={errors.phone?.message}>
-          <Input {...fieldProps('p-phone', errors.phone)} type="tel" inputMode="tel" autoComplete="off" placeholder="+880 1700 000000" className="font-mono text-sm" {...register('phone')} />
-        </Field>
-        <Field label="Condition" htmlFor="p-condition" error={errors.condition?.message}>
-          <Select {...fieldProps('p-condition', errors.condition)} {...register('condition')} defaultValue="">
-            <option value="">Select condition</option>
-            {CONDITIONS.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </Select>
-        </Field>
+        <PatientFields register={register} errors={errors} idPrefix="add" />
       </div>
       <div className="flex justify-end gap-3 border-t border-line px-6 py-4">
         <DialogClose asChild>

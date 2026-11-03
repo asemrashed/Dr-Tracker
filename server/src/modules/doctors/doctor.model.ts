@@ -27,6 +27,8 @@ doctorSchema.pre('validate', function (next) {
 doctorSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { isDeleted: false } });
 doctorSchema.index({ isDeleted: 1, nameLower: 1 });
 doctorSchema.index({ isDeleted: 1, specialization: 1, createdAt: -1 });
+// Dashboard: doctors added per period.
+doctorSchema.index({ isDeleted: 1, createdAt: -1 });
 
 export type DoctorDoc = InferSchemaType<typeof doctorSchema>;
 export const Doctor = model('Doctor', doctorSchema);

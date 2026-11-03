@@ -15,7 +15,11 @@ export const patientFormSchema = z.object({
   gender: z.enum(GENDERS, { errorMap: () => ({ message: 'Choose a gender' }) }),
   phone: z.string().trim().regex(PHONE, 'Enter a valid phone number'),
   condition: z.enum(CONDITIONS, { errorMap: () => ({ message: 'Choose a condition' }) }),
+  /** Only used when editing (reassign). The add-patient form leaves it out. */
+  doctorId: z.string().optional(),
 });
 
+export const patientEditSchema = patientFormSchema.extend({ doctorId: z.string().min(1, 'Choose a doctor') });
+
 export type PatientFormValues = z.infer<typeof patientFormSchema>;
-export const PATIENT_FIELDS = ['name', 'age', 'gender', 'phone', 'condition'] as const;
+export const PATIENT_FIELDS = ['name', 'age', 'gender', 'phone', 'condition', 'doctorId'] as const;

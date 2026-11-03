@@ -226,3 +226,13 @@ export async function reassignAndDelete(id: string, targetDoctorId: string) {
     };
   });
 }
+
+/** Lightweight list for dropdowns (patient filter / reassign). Capped; switch to async search past that. */
+export async function options() {
+  const docs = await Doctor.find({ isDeleted: false })
+    .sort({ nameLower: 1 })
+    .limit(1000)
+    .select('name specialization')
+    .lean();
+  return docs.map((d) => ({ id: String(d._id), name: d.name, specialization: d.specialization }));
+}

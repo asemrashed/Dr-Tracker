@@ -1,8 +1,9 @@
 'use client';
 
-import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { memo } from 'react';
+import { SortButton } from '@/components/shared/sort-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -80,24 +81,6 @@ export function DoctorsTable({ items, loading, sort, order, onSort, onDelete }: 
           : items?.map((d) => <DoctorCard key={d.id} doctor={d} onDelete={onDelete} />)}
       </ul>
     </>
-  );
-}
-
-function SortButton({ label, active, order, onClick }: { label: string; active: boolean; order: 'asc' | 'desc'; onClick: () => void }) {
-  const Icon = active ? (order === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        '-mx-2 inline-flex min-h-9 items-center gap-1.5 rounded-full px-2 transition-colors hover:bg-ink/5 hover:text-ink',
-        active && 'text-ink',
-      )}
-    >
-      {label}
-      <Icon className={cn('size-3.5', !active && 'opacity-50')} aria-hidden />
-      <span className="sr-only">{active ? `, sorted ${order === 'asc' ? 'ascending' : 'descending'}` : ', click to sort'}</span>
-    </button>
   );
 }
 

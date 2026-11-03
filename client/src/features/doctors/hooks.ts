@@ -1,8 +1,7 @@
 'use client';
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { deletePatient } from '@/features/patients/api';
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
+import { useInvalidateAll } from '@/features/patients/hooks';
 import type { PatientFormValues } from '@/features/patients/schemas';
 import {
   createDoctor,
@@ -56,17 +55,6 @@ export const useDoctorPatients = (id: string, params: { page: number; search?: s
     placeholderData: keepPreviousData,
   });
 
-/** Anything that changes doctors or their patients also changes lists, counts and (later) the dashboard. */
-function useInvalidateAll() {
-  const qc = useQueryClient();
-  return () =>
-    Promise.all([
-      qc.invalidateQueries({ queryKey: doctorKeys.all }),
-      qc.invalidateQueries({ queryKey: ['patients'] }),
-      qc.invalidateQueries({ queryKey: ['dashboard'] }),
-    ]);
-}
-
 export function useCreateDoctor() {
   const invalidate = useInvalidateAll();
   return useMutation({ mutationFn: (v: DoctorFormValues) => createDoctor(v), onSuccess: invalidate });
@@ -95,16 +83,5 @@ export function useAddPatient(doctorId: string) {
   return useMutation({
     mutationFn: (v: PatientFormValues) => createDoctorPatient(doctorId, v),
     onSuccess: invalidate,
-  });
-}
-
-export function useDeletePatient() {
-  const invalidate = useInvalidateAll();
-  return useMutation({
-    mutationFn: (id: string) => deletePatient(id),
-    onSuccess: () => {
-      toast.success('Patient deleted');
-      return invalidate();
-    },
   });
 }

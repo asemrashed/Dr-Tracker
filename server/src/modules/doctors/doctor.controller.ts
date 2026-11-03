@@ -15,6 +15,10 @@ export const meta = async (_req: Request, res: Response) => {
   res.json({ data: await service.getMeta() });
 };
 
+export const options = async (_req: Request, res: Response) => {
+  res.json({ data: await service.options() });
+};
+
 export const get = async (req: Request, res: Response) => {
   res.json({ data: await service.getById(id(req)) });
 };
