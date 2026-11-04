@@ -13,6 +13,10 @@ export const get = async (req: Request, res: Response) => {
   res.json({ data: await service.getById(id(req)) });
 };
 
+export const create = async (req: Request, res: Response) => {
+  res.status(201).json({ data: await service.create(req.body) });
+};
+
 export const update = async (req: Request, res: Response) => {
   res.json({ data: await service.update(id(req), req.body) });
 };

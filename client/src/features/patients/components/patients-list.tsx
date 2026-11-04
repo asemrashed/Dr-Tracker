@@ -1,6 +1,6 @@
 'use client';
 
-import { SearchX, Stethoscope, Users } from 'lucide-react';
+import { Plus, SearchX, Stethoscope, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -15,6 +15,7 @@ import { useUrlParams } from '@/lib/use-url-params';
 import { useUrlSearch } from '@/lib/use-url-search';
 import type { Patient, PatientListParams, PatientSort } from '../api';
 import { useDeletePatient, useDoctorOptions, usePatients } from '../hooks';
+import { CreatePatientSheet } from './create-patient-sheet';
 import { EditPatientSheet } from './edit-patient-sheet';
 import { PatientsFilters } from './patients-filters';
 import { PatientsTable } from './patients-table';
@@ -27,6 +28,7 @@ export function PatientsList() {
   const doctors = useDoctorOptions();
   const [editing, setEditing] = useState<Patient | null>(null);
   const [deleting, setDeleting] = useState<Patient | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
   const del = useDeletePatient();
 
   const sortParam = searchParams.get('sort');
@@ -71,7 +73,16 @@ export function PatientsList() {
 
   return (
     <>
-      <PageHeader title="Patients" description="Search, filter and manage every patient across all doctors." />
+      <PageHeader
+        title="Patients"
+        description="Search, filter and manage every patient across all doctors."
+        action={
+          <Button onClick={() => setIsAdding(true)}>
+            <Plus className="size-4" aria-hidden />
+            Add patient
+          </Button>
+        }
+      />
 
       <PatientsFilters
         search={search.text}
@@ -121,6 +132,7 @@ export function PatientsList() {
         <p role="alert" className="mt-3 text-sm text-danger-700">Couldn&apos;t refresh: {error.message}</p>
       )}
 
+      {isAdding && <CreatePatientSheet open={isAdding} onOpenChange={setIsAdding} />}
       {editing && <EditPatientSheet key={editing.id} patient={editing} onClose={() => setEditing(null)} />}
       {deleting && (
         <ConfirmDialog

@@ -37,6 +37,8 @@ export interface PatientListParams {
 }
 
 export const listPatients = (p: PatientListParams) => apiPage<Patient>(`/patients${qs({ ...p, limit: 10 })}`);
+export const createPatient = (v: PatientFormValues & { doctorId: string }): Promise<Patient> =>
+  api<Patient>('/patients', { method: 'POST', json: { ...v, age: Number(v.age) } });
 export const updatePatient = (id: string, v: PatientFormValues) =>
   api<Patient>(`/patients/${id}`, { method: 'PATCH', json: { ...v, age: Number(v.age) } });
 export const deletePatient = (id: string) => api(`/patients/${id}`, { method: 'DELETE' });
